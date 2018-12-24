@@ -1,60 +1,79 @@
 local require = require
+local timer = CS.Timer
 local socket = require "suite.socket"
+local expire_list = {}
 local start_list = {}
 local update_list = {}
+local second_list = {}
+local M = nil
 local hook = {
+	["start"] = start_list,
 	["update"] = update_list,
+	["second"] = second_list,
 }
 
-local function requirex(name, go)
-	print("name", name)
-	local m = require(name)
-	if not m then
+table.clone = function(tbl)
+
+end
+
+local function start(obj)
+	for k, v in pairs(hook) do
+		local cb = obj[k]
+		if cb then
+			v[obj] = cb
+		end
+	end
+end
+
+local function regupdate(obj, cb)
+	update_list[obj] = cb
+end
+
+local function unregupdate(obj)
+	update_list[obj] = nil
+end
+
+local function update_func(list)
+	for obj, cb in pairs(list) do
+		cb(obj)
+	end
+end
+
+local function update(now)
+	local last = M.now
+	M.now = now
+	socket.update()
+	for obj, _ in pairs(start_list) do
+		obj:start()
+		start_list[obj] = nil
+	end
+	update_func(update_list)
+	if now ~= last then
 		return
 	end
-	local start = m.start
-	if start then
-		start_list[start] = go
-	end
-	for k, v in pairs(hook)  do
-		if m[k] then
-			v[#v + 1] = m.update
-		end
+	update_func(second_list)
+end
+
+local function timeout(ms, cb)
+	local sess = timer.timeout(ms)
+	expire_list[sess] = cb
+end
+
+local function expire(session)
+	local cb = expire_list[session]
+	if cb then
+		expire_list[session] = nil
+		cb()
 	end
 end
 
-local function update()
-	socket.update()
-	for func, go in pairs(start_list) do
-		func(go)
-		start_list[func] = nil
-	end
-	for _, v in pairs(update_list) do
-		v()
-	end
-end
-
-local function reload(name, go)
-	local m = require(name)
-	for name, list in pairs(hook) do
-		local func = m[name]
-		if func then
-			for k, v in pairs(list) do
-				if v == func then
-					table.remove(list, k)
-					break
-				end
-			end
-		end
-	end
-	package.loaded[name] = nil
-	m = requirex(name, go)
-end
-
-local M = {
-	require = requirex,
-	update = update,
-	reload = reload,
+M = {
+	_start = start,
+	_update = update,
+	_expire = expire,
+	timeout = timeout,
+	regupdate = regupdate,
+	unregupdate = unregupdate,
 }
 
 return M

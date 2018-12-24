@@ -4,30 +4,51 @@ local M = {}
 local ALIVE = setmetatable({}, {__mode = "kv"})
 local mt = {__index = M}
 
-function M:create(proto, addr, port)
+function M:create(proto)
 	local str = table.concat(proto, "\n")
+	str = [[
+		error 0x1 {
+			.cmd:integer 1
+			.errno:integer 2
+		}
+	]] .. str
 	print(str)
 	local proto, err = zproto:parse(str)
 	assert(proto, err)
 	local obj = {
-		addr = addr,
-		port = port,
+		ip = false,
+		port = false,
 		router = {},
 		proto = proto,
 		sock = core.create(),
 	}
 	setmetatable(obj, mt)
-	ALIVE[obj] = true
+	obj:recv("error", function(tbl)
+		local r = obj.router
+		local cb = r[tbl.cmd]
+		if cb then
+			cb(nil, tbl.errno)
+		end
+	end)
 	return obj
 end
 
+function M:error(cb)
+	self:recv("error", cb)
+end
 
-function M:connect()
+function M:connect(addr)
+	local ip, port = addr:match("([%d.]+):(%d+)")
+	print(ip, port)
+	ALIVE[self] = true
+	self.ip = ip
+	self.port = port
 	local sock = self.sock
-	sock:connect(self.addr, self.port)
+	sock:connect(ip, port)
 end
 
 function M:close()
+	ALIVE[self] = nil
 	sock:close()
 end
 

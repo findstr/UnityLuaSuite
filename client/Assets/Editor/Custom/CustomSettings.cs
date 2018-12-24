@@ -152,9 +152,15 @@ public static class CustomSettings
         _GT(typeof(RenderTexture)),
         _GT(typeof(Resources)),     
         _GT(typeof(LuaProfiler)),
-	_GT(typeof(Button)),
 	_GT(typeof(UnityEvent)),
+	_GT(typeof(RectTransform)),
 	_GT(typeof(Button.ButtonClickedEvent)),
+	_GT(typeof(Button)),
+	_GT(typeof(Image)),
+	_GT(typeof(Sprite)),
+	_GT(typeof(Text)),
+	_GT(typeof(InputField)),
+	_GT(typeof(CS.Timer)),
     };
 
     public static List<Type> dynamicList = new List<Type>()
